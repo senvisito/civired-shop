@@ -8,6 +8,9 @@ if ! wp core is-installed 2>/dev/null; then
     --admin_password="$ADMIN_PASS" --admin_email="$ADMIN_EMAIL" --skip-email
   echo "WordPress instalado"
 fi
+# WordPress al día (WooCommerce exige la última versión principal)
+wp core update
+wp core update-db >/dev/null
 wp language core install es_ES --activate >/dev/null 2>&1 || true
 wp option update timezone_string Europe/Madrid >/dev/null
 wp option update date_format 'd/m/Y' >/dev/null
@@ -16,6 +19,7 @@ wp rewrite structure '/%postname%/' >/dev/null
 wp option update blog_public 0 >/dev/null
 
 wp plugin is-installed woocommerce || wp plugin install woocommerce
+wp plugin update --all >/dev/null 2>&1 || true
 wp plugin activate woocommerce >/dev/null
 wp language plugin install woocommerce es_ES >/dev/null 2>&1 || true
 wp theme is-installed storefront || wp theme install storefront
