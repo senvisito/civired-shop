@@ -33,6 +33,11 @@ async function check() {
   for (const p of providers) {
     if (!p.configured()) { log(`${p.name}: sin credenciales en .env`); ok = false; continue; }
     try {
+      if (p.sampleCategories) {
+        const cats = await p.sampleCategories(5).catch((e) => { log('   categorías: no se pudo', e.message); return []; });
+        log(`${p.name}: categorías vistas en una muestra del catálogo:`);
+        for (const [c, n] of cats.slice(0, 40)) log(`   ${n}\t${c}`);
+      }
       const items = await p.discover(3);
       log(`${p.name}: OK catálogo (${items.length} de prueba: ${items.map((i) => i.supplier_sku).join(', ')})`);
       const pa = await p.priceAndStock(items.map((i) => i.supplier_sku));

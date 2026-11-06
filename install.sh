@@ -27,7 +27,36 @@ PY
 }
 getenv() { grep -E "^$1=" .env | head -1 | cut -d= -f2-; }
 
-if ! command -v docker >/dev/null; then echo "== Instalando Docker"; curl -fsSL https://get.docker.com | sh; fi
+install_docker() {
+  echo "== Instalando Docker"
+  if curl -fsSL https://get.docker.com | sh; then return 0; fi
+  # Si download.docker.com no es accesible desde el servidor, se usa el Docker de los repositorios de Debian
+  echo "== download.docker.com no responde: instalo Docker desde los repositorios de Debian"
+  rm -f /etc/apt/sources.list.d/docker.list /etc/apt/keyrings/docker.asc
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io
+  systemctl enable --now docker
+}
+install_plugins() {
+  # docker compose y docker buildx (plugins): primero de Debian, si no, el binario oficial de GitHub
+  local P=/usr/local/lib/docker/cli-plugins A B
+  mkdir -p $P
+  case "$(uname -m)" in x86_64) A=x86_64; B=amd64;; aarch64) A=aarch64; B=arm64;; *) A=$(uname -m); B=$A;; esac
+  if ! docker compose version >/dev/null 2>&1; then
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker-compose-plugin >/dev/null 2>&1 || \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker-compose-v2 >/dev/null 2>&1 || true
+    docker compose version >/dev/null 2>&1 || { curl -fsSL -o $P/docker-compose "https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-$A" && chmod +x $P/docker-compose; }
+  fi
+  if ! docker buildx version >/dev/null 2>&1; then
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker-buildx-plugin >/dev/null 2>&1 || \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker-buildx >/dev/null 2>&1 || true
+    docker buildx version >/dev/null 2>&1 || { curl -fsSL -o $P/docker-buildx "https://github.com/docker/buildx/releases/download/v0.20.1/buildx-v0.20.1.linux-$B" && chmod +x $P/docker-buildx; }
+  fi
+  docker compose version && docker buildx version
+}
+command -v docker >/dev/null || install_docker
+systemctl is-active --quiet docker || systemctl start docker
+install_plugins
 command -v git >/dev/null || (apt-get update -qq && apt-get install -y -qq git)
 command -v python3 >/dev/null || (apt-get update -qq && apt-get install -y -qq python3)
 
@@ -44,8 +73,6 @@ if [ ! -f .env ]; then
   setenv IM_CLIENT_ID "$(ask x 'Client ID (Consumer Key)')"
   setenv IM_CLIENT_SECRET "$(ask x 'Client Secret (no se verá al escribir)' secret)"
   setenv IM_CUSTOMER_NUMBER "$(ask x 'Número de cliente Ingram (ej. 20-123456)')"
-  echo; echo "== Icecat (fotos y fichas). Si no tienes usuario, déjalo vacío y lo añadimos luego."
-  setenv ICECAT_USER "$(ask x 'Usuario de Open Icecat')"
 fi
 
 PORT=$(getenv SHOP_PORT)

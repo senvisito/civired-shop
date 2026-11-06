@@ -9,6 +9,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY src ./src
+COPY catalog.json ./
 RUN mkdir -p /data && chown node:node /data
 ENV NODE_ENV=production DATA_DIR=/data
 USER node

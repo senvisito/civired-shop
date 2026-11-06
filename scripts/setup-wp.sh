@@ -59,3 +59,30 @@ if ! wp user get "$SYNC_USER" >/dev/null 2>&1; then
 fi
 wp rewrite flush >/dev/null
 echo "WooCommerce configurado"
+
+# Pasarela de pago Stripe (las claves se conectan desde el panel: WooCommerce > Ajustes > Pagos)
+wp plugin is-installed woocommerce-gateway-stripe || wp plugin install woocommerce-gateway-stripe
+wp plugin activate woocommerce-gateway-stripe >/dev/null
+
+# Páginas legales (solo se crean si no existen; luego se pueden editar desde el panel)
+page() { # page slug "Título" archivo
+  ID=$(wp post list --post_type=page --name="$1" --field=ID --posts_per_page=1)
+  if [ -z "$ID" ]; then
+    ID=$(wp post create "/scripts/pages/$3" --post_type=page --post_status=publish --post_title="$2" --post_name="$1" --porcelain)
+    echo "Página creada: $2"
+  fi
+  echo "$ID"
+}
+AVISO=$(page aviso-legal "Aviso legal" aviso-legal.html | tail -1)
+PRIV=$(page politica-de-privacidad "Política de privacidad" politica-privacidad.html | tail -1)
+COOK=$(page politica-de-cookies "Política de cookies" politica-cookies.html | tail -1)
+COND=$(page condiciones-de-venta "Condiciones de venta" condiciones-de-venta.html | tail -1)
+wp option update wp_page_for_privacy_policy "$PRIV" >/dev/null
+wp option update woocommerce_terms_page_id "$COND" >/dev/null
+# Enlaces legales en el pie de página
+if ! wp menu list --fields=name --format=csv | grep -q '^Legal$'; then
+  wp menu create Legal >/dev/null
+  for P in $AVISO $COND $PRIV $COOK; do wp menu item add-post Legal "$P" >/dev/null; done
+  wp menu location assign Legal secondary >/dev/null 2>&1 || true
+fi
+echo "Pagos y páginas legales listos"

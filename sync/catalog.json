@@ -1,0 +1,50 @@
+{
+  "_info": "Qué productos de Ingram se importan. 'searches' son búsquedas al catálogo (category/vendor/keyword). 'include' y 'exclude' son expresiones regulares (da igual mayúsculas) sobre categoría + subcategoría; 'excludeDescription' sobre la descripción. Cambiar aquí y subir a GitHub: el servidor lo aplica solo.",
+  "searches": [
+    {
+      "category": "Notebooks"
+    },
+    {
+      "category": "Notebook"
+    },
+    {
+      "category": "Portátiles"
+    },
+    {
+      "category": "Desktops"
+    },
+    {
+      "category": "Desktop"
+    },
+    {
+      "category": "Computer Systems"
+    },
+    {
+      "category": "Ordenadores"
+    },
+    {
+      "category": "Displays"
+    },
+    {
+      "category": "Monitors"
+    },
+    {
+      "category": "Monitores"
+    },
+    {
+      "category": "Printers"
+    },
+    {
+      "category": "Impresoras"
+    },
+    {
+      "keyword": "gaming notebook"
+    },
+    {
+      "keyword": "gaming desktop"
+    }
+  ],
+  "include": "notebook|laptop|port[aá]til|desktop|sobremesa|ordenador|computer|pc|all.in.one|workstation|gaming|display|monitor|pantalla|printer|impresora|multifunc",
+  "exclude": "toner|t[oó]ner|\\bink\\b|tinta|cartridge|cartucho|drum|tambor|fuser|paper|papel|bag|funda|malet|\\bcases?\\b|cable|adapter|adaptador|charger|cargador|power|battery|bater[ií]a|dock|mount|soporte|\\bstands?\\b|warranty|garant[ií]a|service|servicio|licen|spare|repuesto|accessor|accesori|memory|memoria|storage|almacenamiento|keyboard|teclado|mouse|rat[oó]n|projector|proyector|tablet|phone|m[oó]vil|server|servidor",
+  "excludeDescription": "care ?pack|warranty|garant[ií]a|extension|toner|cartridge|cartucho|refurb|reacondicionad|demo"
+}

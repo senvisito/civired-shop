@@ -69,7 +69,7 @@ export function createIngram(cfg, { fetchImpl = fetch } = {}) {
     return j;
   }
 
-  /** Búsquedas a lanzar según los filtros configurados. */
+  /** Búsquedas a lanzar: las de .env si existen; si no, las de catalog.json. */
   function searches() {
     const base = { type: 'IM::physical' };
     const out = [];
@@ -80,38 +80,76 @@ export function createIngram(cfg, { fetchImpl = fetch } = {}) {
       for (const vendor of cfg.vendors) out.push({ ...base, vendor });
     }
     for (const keyword of cfg.keywords) out.push({ ...base, keyword });
+    if (!out.length) for (const q of cfg.catalog?.searches || []) out.push({ ...base, ...q });
     if (!out.length) out.push(base);
     return out;
   }
 
-  /** Descubre productos del catálogo (sin precio). Devuelve como mucho `limit`. */
-  async function discover(limit) {
+  /** ¿Entra este producto en lo que queremos vender? */
+  function wanted(it) {
+    const c = cfg.catalog || {};
+    const cat = `${it.category || ''} ${it.subCategory || ''}`;
+    if (c.exclude?.test(cat)) return false;
+    if (c.excludeDescription?.test(it.description || '')) return false;
+    if (c.include && !c.include.test(cat || it.description || '')) return false;
+    return true;
+  }
+
+  const toItem = (it) => ({
+    supplier: name,
+    supplier_sku: it.ingramPartNumber,
+    mpn: it.vendorPartNumber || null,
+    ean: it.upcCode || null,
+    brand: it.vendorName || null,
+    name: it.description || null,
+    category: it.category || null,
+    subcategory: it.subCategory || null,
+  });
+
+  /** Descubre productos del catálogo (sin precio). Reparte el límite entre las búsquedas. */
+  async function discover(limit, { filter = true } = {}) {
     const seen = new Map();
-    for (const q of searches()) {
-      for (let page = 1; seen.size < limit; page++) {
-        const j = await call('GET', '/resellers/v6/catalog', { query: { ...q, pageSize: 100, pageNumber: page } });
+    const qs = searches();
+    const perSearch = Math.max(20, Math.ceil(limit / qs.length));
+    for (const q of qs) {
+      let got = 0;
+      for (let page = 1; got < perSearch && seen.size < limit && page <= 50; page++) {
+        let j;
+        try {
+          j = await call('GET', '/resellers/v6/catalog', { query: { ...q, pageSize: 100, pageNumber: page } });
+        } catch (e) {
+          warn(`ingram búsqueda ${JSON.stringify(q)}`, e.message);
+          break;
+        }
         const items = j?.catalog || [];
         for (const it of items) {
           if (String(it.discontinued) === 'true') continue;
           if (!it.ingramPartNumber || seen.has(it.ingramPartNumber)) continue;
-          seen.set(it.ingramPartNumber, {
-            supplier: name,
-            supplier_sku: it.ingramPartNumber,
-            mpn: it.vendorPartNumber || null,
-            ean: it.upcCode || null,
-            brand: it.vendorName || null,
-            name: it.description || null,
-            category: it.category || null,
-            subcategory: it.subCategory || null,
-          });
-          if (seen.size >= limit) break;
+          if (filter && !wanted(it)) continue;
+          seen.set(it.ingramPartNumber, toItem(it));
+          got++;
+          if (got >= perSearch || seen.size >= limit) break;
         }
-        log(`ingram catálogo ${JSON.stringify(q)} pág ${page}: ${items.length} (total ${seen.size}/${j?.recordsFound ?? '?'})`);
+        log(`ingram ${JSON.stringify(q)} pág ${page}: ${items.length} recibidos, ${got} válidos (total ${seen.size}/${limit}, en Ingram ${j?.recordsFound ?? '?'})`);
         if (!items.length || !j?.nextPage) break;
       }
       if (seen.size >= limit) break;
     }
     return [...seen.values()];
+  }
+
+  /** Muestra de categorías reales de Ingram (para ajustar catalog.json). */
+  async function sampleCategories(pages = 5) {
+    const counts = new Map();
+    for (let page = 1; page <= pages; page++) {
+      const j = await call('GET', '/resellers/v6/catalog', { query: { type: 'IM::physical', pageSize: 100, pageNumber: page } });
+      for (const it of j?.catalog || []) {
+        const k = `${it.category || '-'} > ${it.subCategory || '-'}`;
+        counts.set(k, (counts.get(k) || 0) + 1);
+      }
+      if (!j?.nextPage) break;
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
   }
 
   /** Precio de coste y stock de una lista de referencias Ingram (lotes de 50). */
@@ -177,5 +215,5 @@ export function createIngram(cfg, { fetchImpl = fetch } = {}) {
     return { ok: numbers.length > 0, numbers, raw: j };
   }
 
-  return { name, configured, discover, priceAndStock, createOrder };
+  return { name, configured, discover, priceAndStock, createOrder, sampleCategories };
 }

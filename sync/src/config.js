@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 // Configuración leída de variables de entorno (.env). Sin secretos en el código.
 const env = process.env;
 const list = (v) => (v || '').split('|').map((s) => s.trim()).filter(Boolean);
@@ -12,7 +13,7 @@ export const config = {
   requireStock: env.REQUIRE_STOCK !== '0',
   stockCap: num(env.STOCK_CAP, 50),
   pricing: {
-    marginPct: num(env.MARGIN_PCT, 10),
+    marginPct: num(env.MARGIN_PCT, 0),
     minMarginEur: num(env.MIN_MARGIN_EUR, 0),
     rounding: env.PRICE_ROUNDING || 'none',
     vatPct: num(env.VAT_PCT, 21),
@@ -33,7 +34,19 @@ export const config = {
     categories: list(env.IM_CATEGORIES),
     vendors: list(env.IM_VENDORS),
     keywords: list(env.IM_KEYWORDS),
+    catalog: loadCatalog(),
   },
   orders: { mode: env.ORDERS_MODE || 'notify' },
   telegram: { token: env.TELEGRAM_BOT_TOKEN || '', chatId: env.TELEGRAM_CHAT_ID || '' },
 };
+
+/** Qué se vende (sync/catalog.json). Si IM_CATEGORIES/IM_VENDORS/IM_KEYWORDS están rellenas, mandan ellas. */
+function loadCatalog() {
+  try {
+    const d = JSON.parse(fs.readFileSync(new URL('../catalog.json', import.meta.url), 'utf8'));
+    const re = (s) => (s ? new RegExp(s, 'i') : null);
+    return { searches: d.searches || [], include: re(d.include), exclude: re(d.exclude), excludeDescription: re(d.excludeDescription) };
+  } catch {
+    return { searches: [], include: null, exclude: null, excludeDescription: null };
+  }
+}
