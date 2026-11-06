@@ -3,6 +3,9 @@
 #   curl -fsSL https://raw.githubusercontent.com/senvisito/civired-shop/main/install.sh | sudo bash
 # Es seguro repetirlo: no borra nada, solo completa lo que falte.
 set -euo pipefail
+# Todo va dentro de main(): así bash lee el script entero antes de ejecutar y
+# ningún comando (docker compose exec/run) se "come" el resto al instalar con curl | bash.
+main() {
 DIR=/opt/civired-shop
 REPO=https://github.com/senvisito/civired-shop
 DOMAIN=${SHOP_DOMAIN:-shop.civired.com}
@@ -143,3 +146,5 @@ if [ "$NEW_ADMIN" = 1 ]; then
   echo "== ACCESO AL PANEL (guárdalo; también queda en $CRED)"; cat "$CRED"
 else echo "Acceso al panel guardado en $CRED"; fi
 echo "La primera sincronización ya está en marcha. Ver progreso: cd $DIR && docker compose logs -f sync"
+}
+main "$@" </dev/null
