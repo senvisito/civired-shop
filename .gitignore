@@ -1,0 +1,5 @@
+.env
+.deployed
+node_modules/
+*.db
+backups/

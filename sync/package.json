@@ -1,0 +1,16 @@
+{
+  "name": "civired-shop-sync",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Sincroniza catálogos de proveedores (Ingram Micro, ...) con WooCommerce: precio más bajo, margen, stock, fotos Icecat y pedidos drop-ship.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0"
+  }
+}
