@@ -3,7 +3,9 @@
 //   node src/index.js once    -> una sincronización y termina
 //   node src/index.js check   -> comprueba conexiones (Ingram, WooCommerce, Icecat) y termina
 import { config } from './config.js';
-import { openDb, kvGet } from './db.js';
+import fs from 'node:fs';
+import { createHash } from 'node:crypto';
+import { openDb, kvGet, kvSet } from './db.js';
 import { createWoo } from './woo.js';
 import { createIcecat } from './icecat.js';
 import { createIngram } from './providers/ingram.js';
@@ -68,7 +70,12 @@ if (cmd === 'check') {
     try { await runSync(ctx); } finally { running = false; }
   };
   const last = Date.parse(kvGet(db, 'last_sync') || 0) || 0;
-  if (Date.now() - last > config.syncHours * 36e5) syncTick();
+  // Si han cambiado las reglas del catálogo (catalog.json), sincroniza ya sin esperar
+  const catHash = createHash('sha1').update(fs.readFileSync(new URL('../catalog.json', import.meta.url))).digest('hex');
+  const catChanged = kvGet(db, 'catalog_hash') !== catHash;
+  if (catChanged || Date.now() - last > config.syncHours * 36e5) {
+    syncTick().then(() => kvSet(db, 'catalog_hash', catHash));
+  }
   setInterval(syncTick, config.syncHours * 36e5);
   setInterval(() => runOrders(ctx).catch((e) => warn('pedidos', e.message)), config.ordersEveryMin * 60_000);
   runOrders(ctx).catch((e) => warn('pedidos', e.message));

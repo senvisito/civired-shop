@@ -23,7 +23,7 @@ export function createWoo(cfg, db, { fetchImpl = fetch } = {}) {
     const text = await r.text();
     let j;
     try { j = text ? JSON.parse(text) : null; } catch { j = { raw: text.slice(0, 300) }; }
-    if (!r.ok) throw new Error(`Woo ${method} ${path} HTTP ${r.status}: ${j?.message || j?.raw || ''}`);
+    if (!r.ok) throw new Error(`Woo ${method} ${path} HTTP ${r.status}: ${j?.code ? j.code + ' ' : ''}${j?.message || j?.raw || ''}`);
     return j;
   }
 
@@ -32,7 +32,7 @@ export function createWoo(cfg, db, { fetchImpl = fetch } = {}) {
     let parent = 0;
     let pathSoFar = '';
     for (const raw of parts.filter(Boolean)) {
-      const name = titleCase(raw);
+      const name = /[a-z]/.test(raw) ? String(raw).trim() : titleCase(raw);
       pathSoFar = pathSoFar ? `${pathSoFar} > ${name}` : name;
       const row = db.prepare('SELECT woo_id FROM categories WHERE path=?').get(pathSoFar);
       if (row) { parent = row.woo_id; continue; }

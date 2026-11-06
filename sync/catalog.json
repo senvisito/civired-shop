@@ -46,5 +46,36 @@
   ],
   "include": "notebook|laptop|port[aá]til|desktop|sobremesa|ordenador|computer|pc|all.in.one|workstation|gaming|display|monitor|pantalla|printer|impresora|multifunc",
   "exclude": "toner|t[oó]ner|\\bink\\b|tinta|cartridge|cartucho|drum|tambor|fuser|paper|papel|bag|funda|malet|\\bcases?\\b|cable|adapter|adaptador|charger|cargador|power|battery|bater[ií]a|dock|mount|soporte|\\bstands?\\b|warranty|garant[ií]a|service|servicio|licen|spare|repuesto|accessor|accesori|memory|memoria|storage|almacenamiento|keyboard|teclado|mouse|rat[oó]n|projector|proyector|tablet|phone|m[oó]vil|server|servidor",
-  "excludeDescription": "care ?pack|warranty|garant[ií]a|extension|toner|cartridge|cartucho|refurb|reacondicionad|demo"
+  "excludeDescription": "care ?pack|warranty|garant[ií]a|extension|toner|cartridge|cartucho|refurb|reacondicionad|demo",
+  "categoryMap": [
+    {
+      "match": "(notebook|port[aá]til|laptop).*(gaming|nitro|predator|helios|rog|tuf|strix|legion|loq|omen|victus|katana|cyborg|raider|stealth|alienware|odyssey|ideacentre gaming)|(gaming|nitro|predator|helios|rog|tuf|strix|legion|loq|omen|victus|katana|cyborg|raider|stealth|alienware|odyssey|ideacentre gaming).*(notebook|port[aá]til|laptop)",
+      "category": "Ordenadores > Portátiles gaming"
+    },
+    {
+      "match": "notebook|port[aá]til|laptop|chromebook",
+      "category": "Ordenadores > Portátiles"
+    },
+    {
+      "match": "(gaming|nitro|predator|helios|rog|tuf|strix|legion|loq|omen|victus|katana|cyborg|raider|stealth|alienware|odyssey|ideacentre gaming)",
+      "category": "Ordenadores > Sobremesa gaming"
+    },
+    {
+      "match": "all.in.one|\\baio\\b|todo en uno",
+      "category": "Ordenadores > Todo en uno"
+    },
+    {
+      "match": "desktop|tower|sobremesa|mini pc|\\bsff\\b|thinkcentre|prodesk|optiplex|veriton|ordenador|computer system",
+      "category": "Ordenadores > Sobremesa"
+    },
+    {
+      "match": "display|monitor|pantalla",
+      "category": "Monitores"
+    },
+    {
+      "match": "printer|impresora|multifunc|\\bmfp\\b",
+      "category": "Impresoras"
+    }
+  ],
+  "_categoryMap": "Se prueba en orden sobre 'categoría subcategoría nombre'; la primera que encaje decide la categoría en la tienda. Si ninguna encaja: 'Otros'."
 }

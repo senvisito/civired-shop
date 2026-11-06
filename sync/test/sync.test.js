@@ -111,3 +111,16 @@ test('sincronización completa simulada + pedido drop-ship', async () => {
   await runOrders(ctx);
   assert.equal(w.ingramOrders.length, 1);
 });
+
+test('categorías de la tienda en español', async () => {
+  const { shopCategory } = await import('../src/sync.js');
+  const { config } = await import('../src/config.js');
+  const map = config.ingram.catalog.categoryMap;
+  const c = (category, subcategory, name) => shopCategory({ category, subcategory, name }, null, map).join(' > ');
+  assert.equal(c('Computer systems', 'Portables/notebooks', 'HP PROBOOK 4'), 'Ordenadores > Portátiles');
+  assert.equal(c('Computer systems', 'Portables/notebooks', 'ACER NITRO V 16'), 'Ordenadores > Portátiles gaming');
+  assert.equal(c('Computer systems', 'Desktops/towers', 'HP PRODESK 4 SFF'), 'Ordenadores > Sobremesa');
+  assert.equal(c('Computer systems', 'Desktops/towers', 'LENOVO LEGION TOWER 5'), 'Ordenadores > Sobremesa gaming');
+  assert.equal(c('Displays', 'Monitors', 'DELL 24 MONITOR'), 'Monitores');
+  assert.equal(c('Printers', 'Inkjet printers', 'HP OFFICEJET'), 'Impresoras');
+});

@@ -30,6 +30,7 @@ export function openDb(dir) {
     );
     CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT);
   `);
+  try { db.exec('ALTER TABLE products ADD COLUMN cat_id INTEGER'); } catch { /* ya existe */ }
   return db;
 }
 

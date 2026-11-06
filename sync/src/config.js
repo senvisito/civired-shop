@@ -45,8 +45,11 @@ function loadCatalog() {
   try {
     const d = JSON.parse(fs.readFileSync(new URL('../catalog.json', import.meta.url), 'utf8'));
     const re = (s) => (s ? new RegExp(s, 'i') : null);
-    return { searches: d.searches || [], include: re(d.include), exclude: re(d.exclude), excludeDescription: re(d.excludeDescription) };
+    return {
+      searches: d.searches || [], include: re(d.include), exclude: re(d.exclude), excludeDescription: re(d.excludeDescription),
+      categoryMap: (d.categoryMap || []).map((m) => ({ re: re(m.match), path: m.category.split('>').map((x) => x.trim()) })),
+    };
   } catch {
-    return { searches: [], include: null, exclude: null, excludeDescription: null };
+    return { searches: [], include: null, exclude: null, excludeDescription: null, categoryMap: [] };
   }
 }

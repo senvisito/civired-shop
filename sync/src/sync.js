@@ -19,8 +19,10 @@ export async function refreshOffers({ db, providers, config }) {
   for (const p of providers) {
     if (!p.configured()) { warn(`${p.name}: sin credenciales, se salta`); continue; }
     const known = db.prepare('SELECT COUNT(*) n FROM offers WHERE supplier=?').get(p.name).n;
-    if (known < config.maxProducts) {
-      const found = await p.discover(config.maxProducts);
+    // Muchos candidatos se descartan (sin foto o sin stock): se buscan 4 veces más de los que se quieren publicar
+    const want = config.maxProducts * 4;
+    if (known < want) {
+      const found = await p.discover(want);
       const tx = db.transaction((rows) => {
         for (const r of rows) {
           const key = productKey(r);
@@ -30,7 +32,7 @@ export async function refreshOffers({ db, providers, config }) {
       tx(found);
       log(`${p.name}: ${found.length} productos descubiertos`);
     }
-    const rows = db.prepare('SELECT * FROM offers WHERE supplier=? ORDER BY rowid LIMIT ?').all(p.name, config.maxProducts * 2);
+    const rows = db.prepare('SELECT * FROM offers WHERE supplier=? ORDER BY rowid LIMIT ?').all(p.name, config.maxProducts * 5);
     const pa = await p.priceAndStock(rows.map((r) => r.supplier_sku));
     const tx = db.transaction(() => {
       for (const r of rows) {
@@ -55,6 +57,13 @@ function buildDescription(base, ice) {
   return html;
 }
 
+/** Categoría de la tienda (en español) según catalog.json; si no encaja ninguna regla, "Otros". */
+export function shopCategory(best, ice, map = []) {
+  const text = `${best.category || ''} ${best.subcategory || ''} ${ice?.title || ''} ${best.name || ''}`;
+  for (const m of map) if (m.re?.test(text)) return m.path;
+  return map.length ? ['Otros'] : [best.category, best.subcategory].filter(Boolean);
+}
+
 const meta = (best) => [
   { key: '_cr_key', value: best.key },
   { key: '_cr_supplier', value: best.supplier },
@@ -67,9 +76,9 @@ export async function pushToWoo({ db, woo, icecat, config }) {
   const keys = db.prepare('SELECT DISTINCT key FROM offers').all().map((r) => r.key);
   const offersOf = db.prepare('SELECT * FROM offers WHERE key=?');
   const getProd = db.prepare('SELECT * FROM products WHERE key=?');
-  const saveProd = db.prepare(`INSERT INTO products(key,woo_id,sku,price,stock,supplier,supplier_sku,cost,skipped,updated_at)
-    VALUES(@key,@woo_id,@sku,@price,@stock,@supplier,@supplier_sku,@cost,@skipped,@updated_at)
-    ON CONFLICT(key) DO UPDATE SET woo_id=excluded.woo_id, sku=excluded.sku, price=excluded.price, stock=excluded.stock,
+  const saveProd = db.prepare(`INSERT INTO products(key,woo_id,sku,price,stock,supplier,supplier_sku,cost,skipped,updated_at,cat_id)
+    VALUES(@key,@woo_id,@sku,@price,@stock,@supplier,@supplier_sku,@cost,@skipped,@updated_at,@cat_id)
+    ON CONFLICT(key) DO UPDATE SET cat_id=COALESCE(excluded.cat_id,cat_id), woo_id=excluded.woo_id, sku=excluded.sku, price=excluded.price, stock=excluded.stock,
       supplier=excluded.supplier, supplier_sku=excluded.supplier_sku, cost=excluded.cost, skipped=excluded.skipped, updated_at=excluded.updated_at`);
   let published = db.prepare('SELECT COUNT(*) n FROM products WHERE woo_id IS NOT NULL').get().n;
 
@@ -90,11 +99,22 @@ export async function pushToWoo({ db, woo, icecat, config }) {
     const price = sellPrice(best.cost, config.pricing);
     const stock = Math.min(best.stock, config.stockCap);
     const sku = `CR-${key}`.slice(0, 60);
-    const row = { key, woo_id: prod?.woo_id ?? null, sku, price, stock, supplier: best.supplier, supplier_sku: best.supplier_sku, cost: best.cost, skipped: null, updated_at: now() };
+    const row = { key, woo_id: prod?.woo_id ?? null, sku, price, stock, supplier: best.supplier, supplier_sku: best.supplier_sku, cost: best.cost, skipped: null, updated_at: now(), cat_id: null };
 
+    const catMap = config.catalog?.categoryMap || [];
     if (prod?.woo_id) {
-      if (prod.price === price && prod.stock === stock && prod.supplier_sku === best.supplier_sku) { stats.unchanged++; continue; }
-      updates.push({ row, body: { id: prod.woo_id, regular_price: price.toFixed(2), stock_quantity: stock, meta_data: meta({ ...best, key }) } });
+      // Recolocar en la categoría correcta si las reglas han cambiado
+      let catId = prod.cat_id;
+      if (catMap.length) {
+        const ice = await icecat.lookup({ key, ean: best.ean, brand: best.brand, mpn: best.mpn }).catch(() => null);
+        catId = await woo.ensureCategory(shopCategory(best, ice, catMap)).catch(() => prod.cat_id);
+      }
+      row.cat_id = catId;
+      const catChanged = catId && catId !== prod.cat_id;
+      if (!catChanged && prod.price === price && prod.stock === stock && prod.supplier_sku === best.supplier_sku) { stats.unchanged++; continue; }
+      const body = { id: prod.woo_id, regular_price: price.toFixed(2), stock_quantity: stock, meta_data: meta({ ...best, key }) };
+      if (catChanged) body.categories = [{ id: catId }];
+      updates.push({ row, body });
       continue;
     }
     if (published + creates.length >= config.maxProducts) continue;
@@ -104,7 +124,8 @@ export async function pushToWoo({ db, woo, icecat, config }) {
       stats.skipped++;
       continue;
     }
-    const catId = await woo.ensureCategory([best.category, best.subcategory]).catch((e) => { warn('categoría', e.message); return null; });
+    const catId = await woo.ensureCategory(shopCategory(best, ice, catMap)).catch((e) => { warn('categoría', e.message); return null; });
+    row.cat_id = catId;
     const body = {
       name: ice?.title || best.name || best.mpn,
       type: 'simple',

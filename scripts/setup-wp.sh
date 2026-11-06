@@ -89,4 +89,14 @@ if ! wp menu list --fields=name --format=csv | grep -q '^Legal$'; then
   for P in $AVISO $COND $PRIV $COOK; do wp menu item add-post Legal "$P" >/dev/null; done
   wp menu location assign Legal secondary >/dev/null 2>&1 || true
 fi
+# No mostrar cuántas unidades hay (el stock real es del mayorista)
+wp option update woocommerce_stock_format no_amount >/dev/null
+# Borrar contenido de ejemplo de WordPress
+wp post delete $(wp post list --post_type=post --name=hello-world --field=ID) --force >/dev/null 2>&1 || true
+wp post delete $(wp post list --post_type=page --name=sample-page --field=ID) --force >/dev/null 2>&1 || true
+# Facturas en PDF y envío de correos por SMTP (se configuran desde el panel)
+for P in woocommerce-pdf-invoices-packing-slips fluent-smtp; do
+  wp plugin is-installed $P || wp plugin install $P
+  wp plugin activate $P >/dev/null
+done
 echo "Pagos y páginas legales listos"
